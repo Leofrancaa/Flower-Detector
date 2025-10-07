@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌸 Detector de Flores</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: white;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            margin-bottom: 30px;
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .camera-container {
+            position: relative;
+            width: 100%;
+            border-radius: 15px;
+            overflow: hidden;
+            background: #000;
+            margin-bottom: 20px;
+        }
+
+        #video {
+            width: 100%;
+            display: block;
+            transform: scaleX(-1); /* Espelhar video */
+        }
+
+        #canvas {
+            display: none;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            flex: 1;
+            min-width: 150px;
+            padding: 15px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #startBtn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        #captureBtn {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: white;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-container {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .result-container.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .prediction {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .prediction-main {
+            font-size: 2em;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+            text-transform: capitalize;
+        }
+
+        .confidence {
+            text-align: center;
+            font-size: 1.2em;
+            margin-bottom: 15px;
+        }
+
+        .confidence-bar {
+            height: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe, #00f2fe);
+            border-radius: 15px;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .all-predictions {
+            margin-top: 15px;
+        }
+
+        .all-predictions-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .prediction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .prediction-item:last-child {
+            border-bottom: none;
+        }
+
+        .prediction-name {
+            text-transform: capitalize;
+            font-weight: 500;
+        }
+
+        .prediction-value {
+            font-weight: bold;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-size: 1.2em;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: rgba(255, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .info {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 0.9em;
+            text-align: center;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 2em;
+            }
+
+            .container {
+                padding: 20px;
+            }
+
+            button {
+                min-width: 120px;
+                padding: 12px 20px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌸 Detector de Flores</h1>
+        <p class="subtitle">Use a câmera para identificar flores</p>
+
+        <div class="camera-container">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas"></canvas>
+        </div>
+
+        <div class="controls">
+            <button id="startBtn" onclick="startCamera()">📷 Iniciar Câmera</button>
+            <button id="captureBtn" onclick="captureAndPredict()" disabled>🔍 Detectar Flor</button>
+        </div>
+
+        <div id="result" class="result-container">
+            <!-- Resultado será inserido aqui -->
+        </div>
+
+        <div class="info">
+            💡 Dica: Aponte a câmera para uma flor e clique em "Detectar Flor"
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const startBtn = document.getElementById('startBtn');
+        const captureBtn = document.getElementById('captureBtn');
+        const resultDiv = document.getElementById('result');
+
+        let stream = null;
+
+        async function startCamera() {
+            try {
+                // Solicitar permissão da câmera
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment', // Usar câmera traseira no celular
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+
+                video.srcObject = stream;
+
+                startBtn.textContent = '✅ Câmera Ativa';
+                startBtn.disabled = true;
+                captureBtn.disabled = false;
+
+            } catch (error) {
+                console.error('Erro ao acessar câmera:', error);
+                alert('Erro ao acessar a câmera. Verifique as permissões do navegador.');
+            }
+        }
+
+        async function captureAndPredict() {
+            try {
+                // Desabilitar botão durante processamento
+                captureBtn.disabled = true;
+                captureBtn.textContent = '⏳ Processando...';
+
+                // Mostrar loading
+                resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div>Analisando imagem...</div>';
+                resultDiv.classList.add('show');
+
+                // Capturar frame do vídeo
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0);
+
+                // Converter para base64
+                const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+                // Enviar para o servidor
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ image: imageData })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    displayResult(result);
+                } else {
+                    throw new Error(result.error || 'Erro desconhecido');
+                }
+
+            } catch (error) {
+                console.error('Erro na predição:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        ❌ Erro: ${error.message}
+                    </div>
+                `;
+            } finally {
+                // Reabilitar botão
+                captureBtn.disabled = false;
+                captureBtn.textContent = '🔍 Detectar Flor';
+            }
+        }
+
+        function displayResult(result) {
+            const confidence = (result.confidence * 100).toFixed(1);
+            const confidenceColor = getConfidenceColor(result.confidence);
+
+            let allPredictionsHtml = '';
+            for (const [className, prob] of Object.entries(result.all_predictions)) {
+                const percentage = (prob * 100).toFixed(1);
+                allPredictionsHtml += `
+                    <div class="prediction-item">
+                        <span class="prediction-name">${className}</span>
+                        <span class="prediction-value">${percentage}%</span>
+                    </div>
+                `;
+            }
+
+            resultDiv.innerHTML = `
+                <div class="result-title">Resultado da Detecção</div>
+                <div class="prediction">
+                    <div class="prediction-main">${getFlowerEmoji(result.class)} ${result.class}</div>
+                    <div class="confidence">Confiança: ${confidence}%</div>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" style="width: ${confidence}%; background: ${confidenceColor}">
+                            ${confidence}%
+                        </div>
+                    </div>
+                </div>
+                <div class="all-predictions">
+                    <div class="all-predictions-title">Todas as Probabilidades:</div>
+                    ${allPredictionsHtml}
+                </div>
+            `;
+        }
+
+        function getConfidenceColor(confidence) {
+            if (confidence > 0.8) return 'linear-gradient(90deg, #11998e, #38ef7d)';
+            if (confidence > 0.6) return 'linear-gradient(90deg, #f2994a, #f2c94c)';
+            return 'linear-gradient(90deg, #eb3349, #f45c43)';
+        }
+
+        function getFlowerEmoji(className) {
+            const emojis = {
+                'setosa': '🌺',
+                'versicolor': '🌸',
+                'virginica': '🌷',
+                'daisy': '🌼',
+                'roses': '🌹',
+                'tulips': '🌷',
+                'sunflowers': '🌻',
+                'dandelion': '🌼'
+            };
+            return emojis[className.toLowerCase()] || '🌸';
+        }
+
+        // Limpar stream ao sair
+        window.addEventListener('beforeunload', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        });
+
+        // Auto-start camera em dispositivos móveis
+        if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+            window.addEventListener('load', () => {
+                setTimeout(() => {
+                    // Não auto-iniciar, deixar usuário clicar
+                    // startCamera();
+                }, 500);
+            });
+        }
+    </script>
+</body>
+</html>
